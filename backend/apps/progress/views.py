@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Count, Q
 from django.utils import timezone
 from rest_framework import generics, status
@@ -42,24 +43,25 @@ class LessonCompleteView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        completion, created = LessonCompletion.objects.get_or_create(
-            user=request.user, lesson=lesson
-        )
-
-        xp_earned = 0
-        if created:
-            xp_earned = lesson.xp_reward
-            profile = request.user.profile
-            profile.xp_total += xp_earned
-            today = timezone.now().date()
-            if profile.last_activity_date == today - timezone.timedelta(days=1):
-                profile.streak_days += 1
-            elif profile.last_activity_date != today:
-                profile.streak_days = 1
-            profile.last_activity_date = today
-            profile.save(
-                update_fields=["xp_total", "streak_days", "last_activity_date"]
+        with transaction.atomic():
+            completion, created = LessonCompletion.objects.get_or_create(
+                user=request.user, lesson=lesson
             )
+
+            xp_earned = 0
+            if created:
+                xp_earned = lesson.xp_reward
+                profile = request.user.profile
+                profile.xp_total += xp_earned
+                today = timezone.now().date()
+                if profile.last_activity_date == today - timezone.timedelta(days=1):
+                    profile.streak_days += 1
+                elif profile.last_activity_date != today:
+                    profile.streak_days = 1
+                profile.last_activity_date = today
+                profile.save(
+                    update_fields=["xp_total", "streak_days", "last_activity_date"]
+                )
 
         return Response({
             "already_completed": not created,

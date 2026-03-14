@@ -9,6 +9,7 @@ import {
 } from "react-native";
 
 import { Card } from "@/components/ui/Card";
+import { ErrorScreen } from "@/components/ui/ErrorScreen";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { colors } from "@/constants/colors";
@@ -22,25 +23,33 @@ export default function LearnScreen() {
   const [course, setCourse] = useState<Course | null>(null);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  const loadData = useCallback(async () => {
+    setError(false);
+    setLoading(true);
+    try {
+      const courses = await api.courses.list();
+      if (courses.length > 0) {
+        setCourse(courses[0]);
+        const u = await api.units.list(courses[0].id);
+        setUnits(u);
+      }
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
-        try {
-          const courses = await api.courses.list();
-          if (courses.length > 0) {
-            setCourse(courses[0]);
-            const u = await api.units.list(courses[0].id);
-            setUnits(u);
-          }
-        } finally {
-          setLoading(false);
-        }
-      })();
-    }, [])
+      loadData();
+    }, [loadData])
   );
 
   if (loading) return <LoadingScreen />;
+  if (error) return <ErrorScreen onRetry={loadData} />;
 
   return (
     <SafeAreaView style={styles.container}>

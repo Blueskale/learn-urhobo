@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -10,6 +10,7 @@ import {
 } from "react-native";
 
 import { Card } from "@/components/ui/Card";
+import { ErrorScreen } from "@/components/ui/ErrorScreen";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { colors } from "@/constants/colors";
 import { layout } from "@/constants/layout";
@@ -22,19 +23,30 @@ export default function UnitLessonsScreen() {
   const router = useRouter();
   const [lessons, setLessons] = useState<LessonSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const data = await api.lessons.list(Number(unitId));
-        setLessons(data);
-      } finally {
-        setLoading(false);
-      }
-    })();
+  const loadData = useCallback(async () => {
+    setError(false);
+    setLoading(true);
+    try {
+      const data = await api.lessons.list(Number(unitId));
+      setLessons(data);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [unitId]);
 
+  // Refresh on focus so completed lessons show updated lock/complete state
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
   if (loading) return <LoadingScreen />;
+  if (error) return <ErrorScreen onRetry={loadData} />;
 
   return (
     <SafeAreaView style={styles.container}>

@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -10,31 +11,42 @@ import {
 
 import { ContentBlockCard } from "@/components/lesson/ContentBlockCard";
 import { Button } from "@/components/ui/Button";
+import { ErrorScreen } from "@/components/ui/ErrorScreen";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { colors } from "@/constants/colors";
 import { layout } from "@/constants/layout";
 import { typography } from "@/constants/typography";
 import { api } from "@/services/api";
+import { useProgressStore } from "@/store/progressStore";
 import type { LessonDetail } from "@/types";
 
 export default function LessonDetailScreen() {
   const { lessonId } = useLocalSearchParams<{ lessonId: string }>();
   const router = useRouter();
+  const { fetchSummary } = useProgressStore();
   const [lesson, setLesson] = useState<LessonDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [hasQuiz, setHasQuiz] = useState(false);
+  const [completing, setCompleting] = useState(false);
+
+  const loadData = async () => {
+    setError(false);
+    setLoading(true);
+    try {
+      const data = await api.lessons.get(Number(lessonId));
+      setLesson(data);
+      const questions = await api.quiz.questions(Number(lessonId));
+      setHasQuiz(questions.length > 0);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const data = await api.lessons.get(Number(lessonId));
-        setLesson(data);
-        const questions = await api.quiz.questions(Number(lessonId));
-        setHasQuiz(questions.length > 0);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadData();
   }, [lessonId]);
 
   const handleStartQuiz = () => {
@@ -45,11 +57,23 @@ export default function LessonDetailScreen() {
   };
 
   const handleMarkComplete = async () => {
-    await api.progress.complete(Number(lessonId));
-    router.back();
+    setCompleting(true);
+    try {
+      const result = await api.progress.complete(Number(lessonId));
+      if (!result.already_completed && result.xp_earned > 0) {
+        Alert.alert("Lesson Complete!", `You earned ${result.xp_earned} XP`);
+      }
+      await fetchSummary();
+      router.back();
+    } catch {
+      Alert.alert("Error", "Failed to mark lesson complete.");
+    } finally {
+      setCompleting(false);
+    }
   };
 
-  if (loading || !lesson) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (error || !lesson) return <ErrorScreen onRetry={loadData} />;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -90,7 +114,11 @@ export default function LessonDetailScreen() {
         {hasQuiz ? (
           <Button title="Start Quiz" onPress={handleStartQuiz} />
         ) : (
-          <Button title="Mark as Complete" onPress={handleMarkComplete} />
+          <Button
+            title="Mark as Complete"
+            onPress={handleMarkComplete}
+            loading={completing}
+          />
         )}
       </View>
     </SafeAreaView>

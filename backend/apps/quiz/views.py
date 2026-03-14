@@ -126,7 +126,7 @@ class QuizSubmitView(APIView):
                         ]
                     )
                 else:
-                    if score > completion.best_quiz_score:
+                    if completion.best_quiz_score is None or score > completion.best_quiz_score:
                         completion.best_quiz_score = score
                         completion.save(update_fields=["best_quiz_score"])
                 best_score = completion.best_quiz_score

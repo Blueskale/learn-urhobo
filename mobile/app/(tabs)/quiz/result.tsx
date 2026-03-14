@@ -1,15 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/ui/Button";
 import { colors } from "@/constants/colors";
 import { layout } from "@/constants/layout";
 import { typography } from "@/constants/typography";
+import { useProgressStore } from "@/store/progressStore";
 
 export default function QuizResultScreen() {
   const router = useRouter();
+  const { fetchSummary } = useProgressStore();
   const params = useLocalSearchParams<{
     lessonId: string;
     score: string;
@@ -25,6 +27,13 @@ export default function QuizResultScreen() {
   const total = Number(params.total);
   const passed = params.passed === "1";
   const xpEarned = Number(params.xp_earned);
+
+  // Refresh progress summary so dashboard/profile show updated XP/streak
+  useEffect(() => {
+    if (passed) {
+      fetchSummary();
+    }
+  }, [passed]);
 
   return (
     <SafeAreaView style={styles.container}>

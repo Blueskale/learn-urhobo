@@ -1,6 +1,5 @@
-import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -11,6 +10,7 @@ import {
 
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { ErrorScreen } from "@/components/ui/ErrorScreen";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { colors } from "@/constants/colors";
@@ -27,8 +27,11 @@ export default function HomeScreen() {
   const { summary, fetchSummary } = useProgressStore();
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const loadData = useCallback(async () => {
+    setError(false);
+    setLoading(true);
     try {
       await fetchSummary();
       const courses = await api.courses.list();
@@ -36,6 +39,8 @@ export default function HomeScreen() {
         const u = await api.units.list(courses[0].id);
         setUnits(u);
       }
+    } catch {
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -48,6 +53,7 @@ export default function HomeScreen() {
   );
 
   if (loading) return <LoadingScreen />;
+  if (error) return <ErrorScreen onRetry={loadData} />;
 
   const displayName =
     user?.profile.display_name || user?.username || "Learner";

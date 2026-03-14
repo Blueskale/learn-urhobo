@@ -7,6 +7,7 @@ import { MatchingQuestion } from "@/components/quiz/MatchingQuestion";
 import { MultipleChoiceQuestion } from "@/components/quiz/MultipleChoiceQuestion";
 import { QuizProgress } from "@/components/quiz/QuizProgress";
 import { Button } from "@/components/ui/Button";
+import { ErrorScreen } from "@/components/ui/ErrorScreen";
 import { LoadingScreen } from "@/components/ui/LoadingScreen";
 import { colors } from "@/constants/colors";
 import { layout } from "@/constants/layout";
@@ -22,24 +23,36 @@ export default function QuizScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Map<number, QuizAnswer>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const loadQuiz = async () => {
+    setError(false);
+    setLoading(true);
+    try {
+      const [qs, attempt] = await Promise.all([
+        api.quiz.questions(Number(lessonId)),
+        api.progress.start(Number(lessonId)),
+      ]);
+      setQuestions(qs);
+      setAttemptId(attempt.id);
+      setCurrentIndex(0);
+      setAnswers(new Map());
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    (async () => {
-      try {
-        const [qs, attempt] = await Promise.all([
-          api.quiz.questions(Number(lessonId)),
-          api.progress.start(Number(lessonId)),
-        ]);
-        setQuestions(qs);
-        setAttemptId(attempt.id);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    loadQuiz();
   }, [lessonId]);
 
-  if (loading || !attemptId) return <LoadingScreen />;
+  if (loading) return <LoadingScreen />;
+  if (error || !attemptId || questions.length === 0) {
+    return <ErrorScreen message="Could not load quiz." onRetry={loadQuiz} />;
+  }
 
   const question = questions[currentIndex];
   const currentAnswer = answers.get(question.id);
@@ -80,7 +93,6 @@ export default function QuizScreen() {
       return;
     }
 
-    // Submit quiz
     setSubmitting(true);
     try {
       const result = await api.quiz.submit(Number(lessonId), {

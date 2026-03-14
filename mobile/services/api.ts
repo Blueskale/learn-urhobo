@@ -16,8 +16,8 @@ import type {
   User,
 } from "@/types";
 
-// Change this to your machine's IP when testing on a physical device
-const BASE_URL = "http://localhost:8000/api/v1";
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL || "http://localhost:8000/api/v1";
 
 const client = axios.create({
   baseURL: BASE_URL,

@@ -53,8 +53,14 @@ export default function TabsLayout() {
       {/* Hide sub-routes from tab bar */}
       <Tabs.Screen name="units/[unitId]" options={{ href: null }} />
       <Tabs.Screen name="lessons/[lessonId]" options={{ href: null }} />
-      <Tabs.Screen name="quiz/[lessonId]" options={{ href: null }} />
-      <Tabs.Screen name="quiz/result" options={{ href: null }} />
+      <Tabs.Screen
+        name="quiz/[lessonId]"
+        options={{ href: null, tabBarStyle: { display: "none" } }}
+      />
+      <Tabs.Screen
+        name="quiz/result"
+        options={{ href: null, tabBarStyle: { display: "none" } }}
+      />
     </Tabs>
   );
 }
