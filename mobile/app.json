@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Learn Urhobo",
+    "slug": "learn-urhobo",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "learn-urhobo",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.learnurhobo.app"
+    },
+    "android": {
+      "package": "com.learnurhobo.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1B4332"
+      }
+    },
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}
