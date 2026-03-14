@@ -22,6 +22,9 @@ class LessonAttempt(models.Model):
 
     class Meta:
         ordering = ["-started_at"]
+        indexes = [
+            models.Index(fields=["user", "lesson"], name="attempt_user_lesson_idx"),
+        ]
 
     def __str__(self):
         status = f"score={self.quiz_score}" if self.submitted_at else "in progress"

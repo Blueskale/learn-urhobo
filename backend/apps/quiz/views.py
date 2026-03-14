@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -93,45 +94,45 @@ class QuizSubmitView(APIView):
         score = round(correct / total * 100)
         passed = score >= 70
 
-        # Update attempt
-        attempt.quiz_score = score
-        attempt.submitted_at = timezone.now()
+        # Wrap completion + XP + attempt update in a transaction
+        # to prevent duplicate XP or partial writes
+        with transaction.atomic():
+            attempt.quiz_score = score
+            attempt.submitted_at = timezone.now()
 
-        # Handle completion and XP
-        xp_earned = 0
-        best_score = score
-        if passed:
-            completion, created = LessonCompletion.objects.get_or_create(
-                user=request.user,
-                lesson_id=lesson_id,
-                defaults={
-                    "best_quiz_score": score,
-                },
-            )
-            if created:
-                xp_earned = attempt.lesson.xp_reward
-                # Update user profile XP and streak
-                profile = request.user.profile
-                profile.xp_total += xp_earned
-                today = timezone.now().date()
-                if profile.last_activity_date == today - timezone.timedelta(days=1):
-                    profile.streak_days += 1
-                elif profile.last_activity_date != today:
-                    profile.streak_days = 1
-                profile.last_activity_date = today
-                profile.save(
-                    update_fields=[
-                        "xp_total", "streak_days", "last_activity_date"
-                    ]
+            xp_earned = 0
+            best_score = score
+            if passed:
+                completion, created = LessonCompletion.objects.get_or_create(
+                    user=request.user,
+                    lesson_id=lesson_id,
+                    defaults={
+                        "best_quiz_score": score,
+                    },
                 )
-            else:
-                if score > completion.best_quiz_score:
-                    completion.best_quiz_score = score
-                    completion.save(update_fields=["best_quiz_score"])
-            best_score = completion.best_quiz_score
+                if created:
+                    xp_earned = attempt.lesson.xp_reward
+                    profile = request.user.profile
+                    profile.xp_total += xp_earned
+                    today = timezone.now().date()
+                    if profile.last_activity_date == today - timezone.timedelta(days=1):
+                        profile.streak_days += 1
+                    elif profile.last_activity_date != today:
+                        profile.streak_days = 1
+                    profile.last_activity_date = today
+                    profile.save(
+                        update_fields=[
+                            "xp_total", "streak_days", "last_activity_date"
+                        ]
+                    )
+                else:
+                    if score > completion.best_quiz_score:
+                        completion.best_quiz_score = score
+                        completion.save(update_fields=["best_quiz_score"])
+                best_score = completion.best_quiz_score
 
-        attempt.xp_earned = xp_earned
-        attempt.save(update_fields=["quiz_score", "submitted_at", "xp_earned"])
+            attempt.xp_earned = xp_earned
+            attempt.save(update_fields=["quiz_score", "submitted_at", "xp_earned"])
 
         return Response({
             "score": score,
